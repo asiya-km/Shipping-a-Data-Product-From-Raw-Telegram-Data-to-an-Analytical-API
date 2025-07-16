@@ -3,8 +3,6 @@
 import pandas as pd
 from dagster import op, graph, ScheduleDefinition, Definitions
 from sqlalchemy import create_engine
-import subprocess
-from loguru import logger
 
 # SQLite URL for demo
 DB_URL = "sqlite:///./covid.db"
@@ -42,30 +40,17 @@ def transform_covid(df: pd.DataFrame) -> pd.DataFrame:
 def load_covid_weekly(weekly: pd.DataFrame):
     """Write the weekly totals into a SQLite table."""
     engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
-    # Let pandas handle the types automatically
+    # Table schema: date (date), country (str), new_cases (float)
     weekly.to_sql(
         "covid_weekly", engine,
         if_exists="replace",
         index=False,
+        dtype={
+            "date": "DATE",
+            "country": "TEXT",
+            "new_cases": "REAL",
+        },
     )
-
-@op
-def scrape_telegram_data():
-    try:
-        subprocess.run(["python", "src/scraping/scrape_telegram.py"], check=True)
-        logger.info("Scraping completed successfully.")
-    except Exception as e:
-        logger.error(f"Scraping failed: {e}")
-        raise
-
-@op
-def run_yolo_enrichment():
-    try:
-        subprocess.run(["python", "src/enrichment/enrich_images.py"], check=True)
-        logger.info("YOLO enrichment completed successfully.")
-    except Exception as e:
-        logger.error(f"YOLO enrichment failed: {e}")
-        raise
 
 @graph
 def covid_etl():
@@ -81,19 +66,8 @@ daily_schedule = ScheduleDefinition(
     cron_schedule="0 1 * * *",
 )
 
-@job
-def telegram_pipeline():
-    scrape_telegram_data()
-    run_yolo_enrichment()
-
-# Schedule the pipeline to run daily at 1 AM
-telegram_schedule = ScheduleDefinition(
-    job=telegram_pipeline,
-    cron_schedule="0 1 * * *",
-)
-
 # IMPORTANT: Register your jobs and schedules with Definitions
 defs = Definitions(
-    jobs=[covid_etl_job, telegram_pipeline],
-    schedules=[daily_schedule, telegram_schedule],
+    jobs=[covid_etl_job],
+    schedules=[daily_schedule],
 )

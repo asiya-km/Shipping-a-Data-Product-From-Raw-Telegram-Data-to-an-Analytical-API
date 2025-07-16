@@ -1,11 +1,10 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 class Channel(BaseModel):
     id: int
     name: str
-
     class Config:
         orm_mode = True
 
@@ -15,7 +14,6 @@ class Message(BaseModel):
     content: str
     date: datetime
     has_image: bool
-
     class Config:
         orm_mode = True
 
@@ -24,6 +22,13 @@ class ImageDetection(BaseModel):
     message_id: int
     detected_object_class: str
     confidence_score: float
-
     class Config:
-        orm_mode = True 
+        orm_mode = True
+
+class TopProduct(BaseModel):
+    product: str
+    count: int
+
+class ChannelActivity(BaseModel):
+    channel: str
+    activity: List[dict] 
